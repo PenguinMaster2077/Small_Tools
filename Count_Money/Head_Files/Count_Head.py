@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import zhplot
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import pandas as pd # 处理csv
 import argparse # 传参
 
@@ -98,6 +99,7 @@ def Compute_Date(Start_Date, End_Date):
     data = data.reset_index(drop=True)
     data.index = data.index + 1
     Date = data["Date"].unique()
+    print(f"[Count_Head::Compute_Date] Start Date: {Date[0]}, End Date: {Date[-1]}")
     ######################################################################
     # Count
     Cost_Gross = np.empty((len(Date), len(Cost_Type) + 2), dtype=object)
@@ -220,8 +222,10 @@ def Plot_Cost_Pie_Chart(Date, Cost_Gross, Cost_Type, Pic_Dir):
     first_date = Date_Plot[0]
     last_date = Date_Plot[-1]
     # 计算年份和月份差异
-    month_diff = (last_date.year - first_date.year) * 12 + (last_date.month - first_date.month) + (last_date.day - first_date.day)/30
-    average_monthly = Cost_Gross_Plot / month_diff  # 使用实际月份数
+    delta_days = (last_date - first_date).days
+    month_diff = delta_days/30.0
+    average_monthly = Cost_Gross_Plot / month_diff 
+    print(f"[Count_Head::Plot_Cost_Pie_Chart] There are {delta_days} days.")
     table_data = []
     for i, label in enumerate(Cost_Type_Plot):
         table_data.append([label, f'{Cost_Gross_Plot[i]:.2f}', f'{cost_percent[i]:.2f}%', f'{average_monthly[i]:.2f}'])
@@ -229,7 +233,6 @@ def Plot_Cost_Pie_Chart(Date, Cost_Gross, Cost_Type, Pic_Dir):
     total_cost_str = f'{total_cost:.2f}'
     cost_percent_total = f'{100.0:.2f}%'  # 小结占比为100%
     average_monthly_total = f'{np.sum(average_monthly):.2f}'  # 总体平均每月支出
-
     # 添加小结行
     table_data.append(['小结', total_cost_str, cost_percent_total, average_monthly_total])
     # 设置表格的列名
