@@ -4,7 +4,7 @@ from tqdm import tqdm
 import numpy as np
 import zhplot
 import matplotlib
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import zhplot
@@ -88,9 +88,8 @@ def Count_All(Data):
     plt.show()
 
 # 根据传入时间自动计算数据
-def Compute_Date(Start_Date, End_Date):
-    CSV_File = "/mnt/d/2025.csv"
-    data = pd.read_csv(CSV_File, encoding='utf-8')
+def Compute_Date(Start_Date, End_Date, CSV_Path):
+    data = pd.read_csv(CSV_Path, encoding='utf-8')
     # Preliminary Info
     Cost_Type = data[data["Property"] == -1]["Type"].unique()
     Income_Type = data[data["Property"] == 1]["Type"].unique()
@@ -122,7 +121,7 @@ def Compute_Date(Start_Date, End_Date):
     return Date, Cost_Gross, Income_Gross, Cost_Type, Income_Type
 
 # 绘制传入时间内的支出、收入图
-def Plot_Everyday(Date, Cost_Gross, Income_Gross, Pic_Dir):
+def Plot_Everyday(Date, Cost_Gross, Income_Gross, Pic_Dir,interval = 1):
     Date_Plot = [datetime.strptime(date, "%Y-%m-%d") for date in Date]
     Cost_Gross_Plot = -1 * Cost_Gross[:, 1]
     Income_Gross_Plot = Income_Gross[:, 1]
@@ -140,7 +139,7 @@ def Plot_Everyday(Date, Cost_Gross, Income_Gross, Pic_Dir):
     # **扩展 x 轴范围，避免 1-1 被截断**
     plt.xlim(min(Date_Plot) - timedelta(days=0.5), max(Date_Plot) + timedelta(days=0.5))
     plt.ylim(1e-2, 1e5)
-    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))  # 1天一个刻度;
+    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=interval))  # 1天一个刻度;
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))  # 只显示月-日
     plt.xticks(rotation=90, fontsize=8)
     # 添加网格线
@@ -154,7 +153,7 @@ def Plot_Everyday(Date, Cost_Gross, Income_Gross, Pic_Dir):
     plt.close()
 
 # 绘制传入区间内支出的细节
-def Plot_Cost_Details(Date, Cost_Gross, Cost_Type, Pic_Dir):
+def Plot_Cost_Details(Date, Cost_Gross, Cost_Type, Pic_Dir,interval = 1):
     Date_Plot = [datetime.strptime(date, "%Y-%m-%d") for date in Date]
     Cost_Gross_Plot = -1 * Cost_Gross[:, 2:]
     Cost_Gross_Type = Cost_Type[2:]
@@ -189,7 +188,7 @@ def Plot_Cost_Details(Date, Cost_Gross, Cost_Type, Pic_Dir):
     # **扩展 x 轴范围，避免 1-1 被截断**
     plt.xlim(min(Date_Plot) - timedelta(days=0.5), max(Date_Plot) + timedelta(days=0.5))
     plt.ylim(1e-2, 1e5)
-    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))  # 1天一个刻度;
+    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=interval))  # 1天一个刻度;
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))  # 只显示月-日
     plt.xticks(rotation=90, fontsize=8)
     # 添加网格线
@@ -251,8 +250,28 @@ def Plot_Cost_Pie_Chart(Date, Cost_Gross, Cost_Type, Pic_Dir):
     plt.close()
     
 # 根据传入时间，自动计算画图
-def Analysis(Start_Date, End_Date, Pic_Dir):
-    Date, Cost_Gross, Income_Gross, Cost_Type, Income_Type = Compute_Date(Start_Date, End_Date)
-    Plot_Everyday(Date, Cost_Gross, Income_Gross, Pic_Dir)
-    Plot_Cost_Details(Date, Cost_Gross, Cost_Type, Pic_Dir)
+def Analysis(Start_Date, End_Date, CSV_Path, Pic_Dir, Interval=1):
+    Date, Cost_Gross, Income_Gross, Cost_Type, Income_Type = Compute_Date(Start_Date, End_Date, CSV_Path)
+    Plot_Everyday(Date, Cost_Gross, Income_Gross, Pic_Dir, Interval)
+    Plot_Cost_Details(Date, Cost_Gross, Cost_Type, Pic_Dir, Interval)
     Plot_Cost_Pie_Chart(Date, Cost_Gross, Cost_Type, Pic_Dir)
+
+def Analysis_Monthly(CSV_Path, Pic_Dir, Interval=1):
+    data = pd.read_csv(CSV_Path, encoding='utf-8')
+    data["Date"] = pd.to_datetime(data["Date"], format="%Y-%m-%d")
+    # 提取每个月的起始日期和结束日期
+    data["Month"] = data["Date"].dt.to_period("M")  # 提取每个月
+    # 使用字典来存储每个月的起止日期
+    monthly_range = data.groupby("Month")["Date"].agg(["min", "max"])
+    # 创建两个列表来分别存储每个月的起始和结束日期
+    start_dates = []
+    end_dates = []
+    # 遍历并将结果添加到列表
+    for month, row in monthly_range.iterrows():
+        start_dates.append(row["min"].strftime("%Y-%m-%d"))
+        end_dates.append(row["max"].strftime("%Y-%m-%d"))
+    # Process Monthly
+    for index in range(len(start_dates)):
+        Start_Date = start_dates[index]
+        End_Date = end_dates[index]
+        Analysis(Start_Date, End_Date, CSV_Path, Pic_Dir, Interval=1)
