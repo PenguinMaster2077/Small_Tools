@@ -135,7 +135,7 @@ def Plot_Everyday(Date, Cost_Gross, Income_Gross, Pic_Dir,interval = 1):
     plt.title("每日收入与支出总览图")
     plt.xlabel("日期")
     plt.ylabel("花费金额")
-    plt.yscale('log')
+    plt.yscale('symlog')
     # **扩展 x 轴范围，避免 1-1 被截断**
     plt.xlim(min(Date_Plot) - timedelta(days=0.5), max(Date_Plot) + timedelta(days=0.5))
     plt.ylim(1e-2, 1e5)
@@ -224,7 +224,7 @@ def Plot_Cost_Pie_Chart(Date, Cost_Gross, Cost_Type, Pic_Dir):
     delta_days = (last_date - first_date).days
     month_diff = delta_days/30.0
     average_monthly = Cost_Gross_Plot / month_diff 
-    print(f"[Count_Head::Plot_Cost_Pie_Chart] There are {delta_days} days.")
+    print(f"[Count_Head::Plot_Cost_Pie_Chart] There are {delta_days + 1} days.")
     table_data = []
     for i, label in enumerate(Cost_Type_Plot):
         table_data.append([label, f'{Cost_Gross_Plot[i]:.2f}', f'{cost_percent[i]:.2f}%', f'{average_monthly[i]:.2f}'])
@@ -248,13 +248,79 @@ def Plot_Cost_Pie_Chart(Date, Cost_Gross, Cost_Type, Pic_Dir):
     Pic_Path = Pic_Dir + f"/Cost_Pie_Chart_{first}_{end}.jpg"
     plt.savefig(Pic_Path, dpi=500)
     plt.close()
-    
+
+# 绘制前100项花销
+def Plot_Cost_First_100(Start_Date, End_Date, CSV_Path, Pic_Dir):
+    data = pd.read_csv(CSV_Path, encoding='utf-8')
+    Cost_Type = data[data["Property"] == -1]["Type"].unique()
+    Income_Type = data[data["Property"] == 1]["Type"].unique()
+    if Start_Date != "0" and End_Date != "0":
+            data = data[(data["Date"] >= Start_Date) & (data["Date"] <= End_Date)]
+    data = data[data["Property"] == -1]
+    column_labels = ['No.','日期','类别','金额','注释']
+    # 所有详细花销
+    temp_data = data.reset_index(drop=True)
+    temp_data = temp_data.nsmallest(100, "Quantity")
+    table_data = []
+    index = 1
+    for _, row in temp_data.iterrows():
+        table_data.append([
+            index,
+            row["Date"],
+            row["Type"],
+            row["Quantity"],
+            row["Comment"]
+        ])
+        index = index + 1
+    # Plot
+    fig, ax = plt.subplots(figsize=(5, 20))
+    ax.set_axis_off()
+    table = ax.table(cellText=table_data, colLabels=column_labels, cellLoc='center', loc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.auto_set_column_width([0, 1, 2, 3, 4])
+    # plt.show()
+    pic_path = Pic_Dir + f"/Total_Cost_{Start_Date}_{End_Date}.jpg"
+    plt.savefig(pic_path, dpi=500)
+    plt.close()
+    # 每类详细花销
+    for cost_type in Cost_Type:
+        temp_data = data[data["Type"] == cost_type]
+        temp_data = temp_data.reset_index(drop=True)
+        temp_data = temp_data.nsmallest(100, "Quantity")
+        table_data = []
+        index = 1
+        for _, row in temp_data.iterrows():
+            table_data.append([
+                index, 
+                row["Date"],
+                row["Type"],
+                row["Quantity"],
+                row["Comment"]
+            ])
+            index = index + 1
+        # Plot
+        if(len(table_data) != 0):
+            fig, ax = plt.subplots(figsize=(5, 20))
+            ax.set_axis_off()
+            table = ax.table(cellText=table_data, colLabels=column_labels, cellLoc='center', loc='center')
+            table.auto_set_font_size(False)
+            table.set_fontsize(10)
+            table.auto_set_column_width([0, 1, 2, 3, 4])
+            # plt.show()
+            pic_path = Pic_Dir + f"/{cost_type}_{Start_Date}_{End_Date}.jpg"
+            plt.savefig(pic_path, dpi=500)
+            plt.close()
+        else:
+            continue
+
 # 根据传入时间，自动计算画图
 def Analysis(Start_Date, End_Date, CSV_Path, Pic_Dir, Interval=1):
     Date, Cost_Gross, Income_Gross, Cost_Type, Income_Type = Compute_Date(Start_Date, End_Date, CSV_Path)
     Plot_Everyday(Date, Cost_Gross, Income_Gross, Pic_Dir, Interval)
     Plot_Cost_Details(Date, Cost_Gross, Cost_Type, Pic_Dir, Interval)
     Plot_Cost_Pie_Chart(Date, Cost_Gross, Cost_Type, Pic_Dir)
+    Plot_Cost_First_100(Start_Date, End_Date, CSV_Path, Pic_Dir)
 
 def Analysis_Monthly(CSV_Path, Pic_Dir, Interval=1):
     data = pd.read_csv(CSV_Path, encoding='utf-8')
@@ -275,3 +341,15 @@ def Analysis_Monthly(CSV_Path, Pic_Dir, Interval=1):
         Start_Date = start_dates[index]
         End_Date = end_dates[index]
         Analysis(Start_Date, End_Date, CSV_Path, Pic_Dir, Interval=1)
+
+# 分析所有数据
+def Analysis_All(CSV_Path, Pic_Dir):
+    data = pd.read_csv(CSV_Path, encoding='utf-8')
+    data["Date"] = pd.to_datetime(data["Date"], format="%Y-%m-%d")
+    # 创建两个列表来分别存储每个月的起始和结束日期
+    Date = data["Date"].unique()
+    length = len(Date)
+    Start_Date = Date[0].strftime("%Y-%m-%d")
+    End_Date = Date[length - 1].strftime("%Y-%m-%d")
+    Interval = int(1.0 * length / 30.0) + 1
+    Analysis(Start_Date, End_Date, CSV_Path, Pic_Dir, Interval=Interval)
