@@ -1,5 +1,6 @@
 from PIL import Image
 import os
+import shutil
 
 def Convert_Image_To_PDF(image_path, output_pdf_path):
     """
@@ -81,4 +82,22 @@ def Batch_Folder_To_PDF(parent_folder_path, output_folder_path):
         # 调用图像合并函数
         print(f"📂 正在处理子文件夹：{subfolder}")
         Merge_Images_To_PDF(subfolder_path, output_pdf_path)
+
+
+def Pack_Subfolders_To_ZIP(input_dir, output_dir):
+    """
+    将 input_dir 下的每一个子文件夹打包成 RAR 文件（仅打包，不压缩），存放到 output_dir。
+    :param input_dir: 输入目录
+    :param output_dir: 输出目录
+    :param rar_executable: rar 可执行文件路径（默认 'rar'，Windows 可改为 'C:/Program Files/WinRAR/rar.exe'）
+    """
+    # 确保输出目录存在
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for item in os.listdir(input_dir):
+        folder_path = os.path.join(input_dir, item)
+        if os.path.isdir(folder_path):
+            output_path = os.path.join(output_dir, item)  # 不要加扩展名
+            shutil.make_archive(output_path, 'zip', folder_path)
+            print(f"已打包: {output_path}.zip")
 
