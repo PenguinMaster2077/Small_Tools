@@ -18,22 +18,28 @@ def Convert_Image_To_PDF(image_path, output_pdf_path):
     except Exception as e:
         print(f"❌ 图片转换失败：{image_path}，错误信息：{e}")
         
-def Merge_Images_To_PDF(folder_path, output_pdf_path):
+def Merge_Images_To_PDF(folder_path, output_pdf_path, order='n'):
     """
-    将一个文件夹内的所有 JPG/JPEG 图片合并成一个 PDF。
+    将一个文件夹内的所有 JPG/JPEG/PNG/WEBP 图片合并成一个 PDF。
     
     参数：
         folder_path (str): 包含图片的文件夹路径。
         output_pdf_path (str): 输出 PDF 文件的完整路径。
+        order (str): 图片排序方式，'asc' 表示正序，'desc' 表示倒序（默认 'asc'）。
     """
+    
     # 支持格式扩展
     supported_exts = ('.jpg', '.jpeg', '.png', '.webp')
 
+    if order == "n":
+        order = 'asc'
+    elif order == "i":
+        order = 'desc'
     # 获取图片文件
-    img_files = sorted([
-        f for f in os.listdir(folder_path)
-        if f.lower().endswith(supported_exts)
-    ])
+    img_files = sorted(
+        [f for f in os.listdir(folder_path) if f.lower().endswith(supported_exts)],
+        reverse=(order.lower() == 'desc')
+    )
 
     if not img_files:
         print(f"⚠ 文件夹为空或无支持图片：{folder_path}")
@@ -57,8 +63,7 @@ def Merge_Images_To_PDF(folder_path, output_pdf_path):
     else:
         print(f"❌ 所有图片处理失败，未生成 PDF。")
         
-
-def Batch_Folder_To_PDF(parent_folder_path, output_folder_path):
+def Batch_Folder_To_PDF(parent_folder_path, output_folder_path, order):
     """
     遍历 parent_folder_path 下所有子文件夹，
     每个子文件夹内图片合并成一个 PDF，保存到 output_folder_path 中。
@@ -81,8 +86,7 @@ def Batch_Folder_To_PDF(parent_folder_path, output_folder_path):
         
         # 调用图像合并函数
         print(f"📂 正在处理子文件夹：{subfolder}")
-        Merge_Images_To_PDF(subfolder_path, output_pdf_path)
-
+        Merge_Images_To_PDF(subfolder_path, output_pdf_path, order)
 
 def Pack_Subfolders_To_ZIP(input_dir, output_dir):
     """
@@ -96,8 +100,33 @@ def Pack_Subfolders_To_ZIP(input_dir, output_dir):
     
     for item in os.listdir(input_dir):
         folder_path = os.path.join(input_dir, item)
+        print(f"📂 正在处理子文件夹：{folder_path}")
         if os.path.isdir(folder_path):
             output_path = os.path.join(output_dir, item)  # 不要加扩展名
             shutil.make_archive(output_path, 'zip', folder_path)
             print(f"已打包: {output_path}.zip")
 
+def Process_One_File(Pic_Path, name, order="i"):
+    """
+    给定 Pic_Path，执行以下步骤：
+    1. 将 Pic_Path/图片版 下的子文件夹内图片合并成 PDF，保存到 Pic_Path/PDF 下
+    2. 将 Pic_Path/图片版 打包成 ZIP，保存到 Pic_Path/压缩包版 下
+    """
+    # 定义路径
+    img_folder = os.path.join(Pic_Path, "图片版")
+    pdf_folder = os.path.join(Pic_Path, "PDF版")
+    zip_folder = os.path.join(Pic_Path, "压缩包版")
+    
+    # Step 1: 图片版 → PDF
+    if os.path.exists(img_folder):
+        os.makedirs(pdf_folder, exist_ok=True)
+        Merge_Images_To_PDF(img_folder, f"{pdf_folder}/{name}.pdf", order)
+    else:
+        print(f"❌ 找不到图片版目录：{img_folder}")
+        return
+
+    # Step 2: 打包 图片版 → 压缩包版
+    os.makedirs(zip_folder, exist_ok=True)
+    output_zip_path = os.path.join(zip_folder, f"{name}")
+    shutil.make_archive(output_zip_path, 'zip', img_folder)
+    print(f"✔ 已打包到：{output_zip_path}.zip")
